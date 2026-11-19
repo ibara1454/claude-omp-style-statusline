@@ -11,11 +11,26 @@ fn begin_chip(out : Array[String]) -> Unit {
 }
 
 ///|
+fn terminal_cells(text : String) -> Int32 {
+  for unit in text.code_units() {
+    if unit > 127 {
+      // Terminals allocate cells per grapheme, not per typographic ligature.
+      let mut cells = 0
+      for cluster in @segmentation.graphemes(text) {
+        cells += @unicodewidth.str_width(cluster)
+      }
+      return cells
+    }
+  }
+  text.length()
+}
+
+///|
 fn chip_label_cells(label : String, prefix_cells : Int32) -> Int32 {
   if label.is_empty() {
     0
   } else {
-    prefix_cells + @unicodewidth.str_width(label)
+    prefix_cells + terminal_cells(label)
   }
 }
 
@@ -24,11 +39,16 @@ fn clip_path(path : String, cells : Int32, limit : Int32) -> (String, Int32) {
   if cells <= limit {
     (path, cells)
   } else {
-    let display = @displaytext.DisplayText(path)
-    let cut = @displaytext.DisplayPosition::new(column=cells - limit + 1)
-    let start = display.textual_position_at_or_after(cut)
-    let dropped = display.display_position(start).column()
-    ("…\{display.view(start, display.end())}", cells - dropped + 1)
+    let mut dropped = 0
+    let mut offset = 0
+    for cluster in @segmentation.graphemes(path) {
+      dropped += @unicodewidth.str_width(cluster)
+      offset += cluster.length()
+      if cells - dropped < limit {
+        break
+      }
+    }
+    ("…" + path[offset:].to_owned(), cells - dropped + 1)
   }
 }
 
@@ -87,7 +107,7 @@ pub fn render_row(
   }
   let cost = cost_label(cost_usd)
   let mut model_cells = chip_label_cells(model, 5)
-  let path_width = @unicodewidth.str_width(path)
+  let path_width = terminal_cells(path)
   let path_limit = path_width.min(40)
   let path_cells = if path.is_empty() { 0 } else { path_limit + 6 }
   let branch_cells = chip_label_cells(branch, 2)

@@ -5,6 +5,6 @@ preferred_target = "js"
 supported_targets = "js"
 
 import {
-  "moonbit-community/displaytext@0.1.7",
+  "moonbit-community/unicode-segmentation@0.6.0",
   "moonbit-community/unicodewidth@0.2.1",
 }

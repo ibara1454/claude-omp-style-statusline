@@ -116,7 +116,7 @@ pub fn parse_status(raw : String) -> FixedArray[String] {
     if record.strip_prefix("# branch.head ") is Some(name) {
       branch = name
     }
-    if record is ['1' | '2' | 'u', ' ', x, y, ' ', ..] {
+    if record is ['1' | '2', ' ', x, y, ' ', ..] {
       needs_origin = record.has_prefix("2 ")
       if x != '.' {
         staged += 1
@@ -124,6 +124,9 @@ pub fn parse_status(raw : String) -> FixedArray[String] {
       if y != '.' {
         unstaged += 1
       }
+    } else if record.has_prefix("u ") {
+      // Unmerged XY describes merge heads, not staged changes.
+      unstaged += 1
     } else if record.has_prefix("? ") {
       untracked += 1
     }

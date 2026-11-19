@@ -93,7 +93,7 @@ test "parse_status counts NUL-terminated untracked paths without treating newlin
 }
 
 ///|
-test "parse_status counts renames and conflicts once per dirty column and skips rename source paths" {
+test "parse_status skips rename source paths and never calls an unresolved path staged" {
   let rename = "2 R. N... 100644 100644 100644 abc def R100 new name\u0000"
   let branch = "# branch.head main\u0000"
   let conflict = "u UU N... 100644 100644 100644 100644 abc def abc conflict\u0000"
@@ -103,7 +103,7 @@ test "parse_status counts renames and conflicts once per dirty column and skips 
     rename +
     "\nold name\u0000" +
     conflict
-  assert_eq(@core.parse_status(raw), ["main", "*1", "+3", ""])
+  assert_eq(@core.parse_status(raw), ["main", "*1", "+2", ""])
   assert_eq(@core.parse_status(branch + rename), [])
 }
 

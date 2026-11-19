@@ -115,6 +115,12 @@ test "a decomposed accent occupies one cell and stays attached to its base" {
 }
 
 ///|
+test "Arabic letters occupy separate terminal cells even if the font joins them" {
+  let row = @core.render_row(12, "model", "/repo/لا", [], 14, 200000, -1.0)
+  assert_eq(row_text(row), " 📁 …o/لا ▶─")
+}
+
+///|
 test "growing a row restores one intact two-cell ZWJ emoji" {
   let path = "/abc👩‍🔬qrst"
   let at = fn(columns) {
