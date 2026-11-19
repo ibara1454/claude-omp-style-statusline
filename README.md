@@ -1,8 +1,16 @@
 # MoonBit statusline for Claude Code
 
-From this checkout, run `claude-codex --plugin-dir .`. No rebuild or installation is needed to load the mod. The milestone 1 row shows only the active model, immediately above the terminal input. It does not replace or configure the native footer.
+Run `claude-codex --plugin-dir .` from the checkout. The committed MoonBit ES module needs no compiler, Node.js, Bun, or package installation to load. The mod draws one terminal-only `AbovePrompt` row; it does not replace or configure the native footer.
 
-`hooks/register.tsx` reads `$.session.model()` at session start and updates the label on `classic.PostModelSwitch`. `core/model.mbt` formats the label; `hooks/statusline.js` is its committed ES module. Rendering uses the cached label and the band’s `bodyColumns`, with no model lookup on resize.
+The dark group shows the active model, shortened working path, Git branch and changed-path counts (`*` unstaged, `+` staged, `?` untracked), then the estimated session cost. The rule shows percent used and the model window in tokens. Before the host reports usage, the window can appear without a percentage. A missing estimate is omitted; `~$` is not an invoice. There is no title, quota bar or subagent surcharge: Claude can retire agent records or restore a total without restoring its per-agent breakdown.
+
+At narrow widths the path shortens first. If that is not enough, cost, Git and model disappear in that order, leaving the path last. Even the path can disappear at extreme widths. A resize only fits the cached values to the available terminal cells.
+
+### Where the values come from
+
+- `hooks/register.tsx` reads the session model and usage, handles model and usage updates, and runs Git at startup, on an actual directory change and at main-turn completion. External edits during idle time remain stale until the next refresh. Failed or truncated Git output hides just Git.
+- `core/vcs.mbt` shortens the path and parses NUL-delimited Git porcelain v2; filenames are not labels. `core/metrics.mbt` formats the estimate and the embedded gauge. `core/layout.mbt` fits the colored spans to `bodyColumns`, following the [OMP 19 layout](https://github.com/can1357/oh-my-pi/blob/v19.0.0/packages/tui/src/status-line/component.ts).
+- `hooks/statusline.d.ts` describes the JS boundary. Claude imports only `hooks/statusline.js` at runtime; Unicode width and grapheme handling are compiled into it. See `THIRD-PARTY-NOTICES`.
 
 ## Development
 
@@ -16,6 +24,6 @@ make build    # regenerate hooks/statusline.js after changing the MoonBit source
 make check    # compare the shipped JS with a clean build and run unattended checks
 ```
 
-The first developer check downloads the matching [Claude Mods declarations](https://github.com/anthropics/claude-code/blob/v2.1.328/mods/types/claude-code.d.ts) and verifies their checksum. The mod itself does not use the network.
+The first developer build needs the pinned MoonBit packages. The TypeScript check downloads and verifies the [Claude Mods declarations](https://github.com/anthropics/claude-code/blob/v2.1.328/mods/types/claude-code.d.ts). The mod itself does not use the network.
 
-The host test supplies two model names to Claude Code’s terminal test environment. Only a live `claude-codex` session verifies the real model and its placement. Check coexistence on a host that already has the native footer; do not install or disable a footer for the test.
+`make check` runs JS-target MoonBit tests and a 90% production coverage-point gate, a real disposable Git repository, strict TS/lint and the official Claude plugin validator and terminal mount tests. Live acceptance uses the shipped module in `claude-codex`, wide and narrow. A host without the original shell footer cannot prove coexistence; leave that footer untouched until cutover on its intended host.

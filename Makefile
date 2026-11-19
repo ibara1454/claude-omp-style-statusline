@@ -1,5 +1,6 @@
 MOON_HOME ?= $(HOME)/.moon
 export PATH := $(MOON_HOME)/bin:$(PATH)
+export MOON_REGISTRY_API := 1
 
 MOONBIT_RELEASE := 0.10.21+06da1ed44
 MOON_VERSION := 0.1.20261117 (eb64713 2026-11-17)
@@ -19,7 +20,7 @@ check: check-toolchain
 	moon coverage clean
 	moon test --target js --deny-warn --enable-coverage
 	moon coverage report -f=full_summary > _build/coverage-summary.txt
-	@awk '/\.mbt: [0-9]+\/[0-9]+$$/ && !/_(wb)?test\.mbt:/ { \
+	@awk '/^core\/.*\.mbt: [0-9]+\/[0-9]+$$/ && !/_(wb)?test\.mbt:/ { \
 	    split($$NF, points, "/"); hit += points[1]; total += points[2] \
 	  } END { \
 	    if (!total) { print "MoonBit coverage report contains no production coverage points"; exit 1 } \
@@ -31,6 +32,7 @@ check: check-toolchain
 	  trap 'rm -rf "$$dir"' 0; \
 	  $(MOON_BUILD) --target-dir "$$dir"; \
 	  cmp "$$dir/$(RELEASE_JS)" "$(SHIPPED_JS)" || { echo 'Run make build to regenerate $(SHIPPED_JS).' >&2; exit 1; }
+	node --test scripts/git.integration.mjs
 	bun run check:ts
 	claude plugin validate --strict .
 	claude plugin test .

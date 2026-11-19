@@ -1,5 +1,19 @@
+import {
+  "moonbit-community/displaytext",
+  "moonbit-community/unicodewidth",
+}
+
 pkgtype(kind: "foreign_library")
 
 options(
-  link: { "js": { "exports": [ "model_label:modelLabel" ], "format": "esm" } },
+  link: {
+    "js": {
+      "exports": [
+        "format_path:formatPath",
+        "parse_status:parseStatus",
+        "render_row:renderRow",
+      ],
+      "format": "esm",
+    },
+  },
 )

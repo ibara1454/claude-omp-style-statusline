@@ -5,7 +5,7 @@
   "packageManager": "bun@1.4.4",
   "scripts": {
     "types:claude": "bun scripts/claude-types.mjs",
-    "check:ts": "bun run types:claude && bun run --bun tsc && bun run --bun oxlint --deny-warnings hooks/register.tsx tests/model.test.ts"
+    "check:ts": "bun run types:claude && bun run --bun tsc && bun run --bun oxlint --deny-warnings hooks/*.tsx tests/*.ts"
   },
   "devDependencies": {
     "oxlint": "1.94.0",

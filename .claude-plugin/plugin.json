@@ -1,6 +1,6 @@
 {
   "name": "omp-statusline",
   "version": "0.1.0",
-  "description": "Shows the session’s active model above the Claude Code terminal prompt.",
+  "description": "A MoonBit-rendered model, path, Git, cost and context row above the Claude Code terminal prompt.",
   "author": { "name": "Chiajun Wang" }
 }

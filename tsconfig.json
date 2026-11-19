@@ -14,9 +14,9 @@
     "jsxFactory": "h",
     "jsxFragmentFactory": "Fragment"
   },
-  "files": [
+  "include": [
     "node_modules/.cache/claude-code/index.d.ts",
-    "hooks/register.tsx",
-    "tests/model.test.ts"
+    "hooks/**/*.tsx",
+    "tests/**/*.ts"
   ]
 }
