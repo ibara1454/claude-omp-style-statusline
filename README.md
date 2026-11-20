@@ -2,9 +2,9 @@
 
 Run `claude-codex --plugin-dir .` from the checkout. The committed MoonBit ES module needs no compiler, Node.js, Bun, or package installation to load. The mod draws one terminal-only `AbovePrompt` row; it does not replace or configure the native footer.
 
-The dark group shows the active model and its reported reasoning effort (for example `◕ gpt-6-luna (high)`), shortened working path, Git branch and changed-path counts (`*` unstaged, `+` staged, `?` untracked), then the estimated session cost. The rule shows percent used and the model window in tokens. Before the host reports usage, the window can appear without a percentage. A missing estimate is omitted; `~$` is not an invoice. There is no title, quota bar or subagent surcharge: Claude can retire agent records or restore a total without restoring its per-agent breakdown.
+The dark group shows reasoning effort first (`◕ xhigh > gpt-6-luna`), then the working path, Git branch and changed-path counts (`*` unstaged, `+` staged, `?` untracked), and estimated session cost. The circle belongs to effort: `○ low`, `◔ medium`, `◑ high`, `◕ xhigh`, `● max`. The rule shows percent used and the model window in tokens. Before the host reports usage, the window can appear without a percentage. A missing estimate is omitted; `~$` is not an invoice. There is no title, quota bar or subagent surcharge: Claude can retire agent records or restore a total without restoring its per-agent breakdown.
 
-At narrow widths the path shortens first. If that is not enough, cost, Git and model disappear in that order, leaving the path last. Even the path can disappear at extreme widths. A resize only fits the cached values to the available terminal cells.
+At narrow widths the path shortens first. If that is not enough, cost, Git, model and effort disappear in that order, leaving the path last. Even the path can disappear at extreme widths. A resize only fits the cached values to the available terminal cells.
 
 **Effort before the first turn:** Claude reports the level directly on main-thread model requests. To also see it at startup and immediately after `/effort` or `/model`, allow one read-only command for this session:
 
@@ -12,7 +12,7 @@ At narrow widths the path shortens first. If that is not enough, cost, Git and m
 claude-codex --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'
 ```
 
-The mod never requests permission or guesses a level from settings. If that read isn't allowed, the label waits for the next main-thread request. A model that reports no effort has no suffix.
+The mod never requests permission or guesses a level from settings. If that read isn't allowed, the effort chip waits for the next main-thread request. When no level is reported, the row starts directly with the model name.
 
 ### Where the values come from
 
@@ -36,4 +36,4 @@ The first developer build needs the pinned MoonBit packages. The TypeScript chec
 
 `make check` runs JS-target MoonBit tests and a 90% production coverage-point gate, a real disposable Git repository, strict TS/lint and the official Claude plugin validator and terminal mount tests. Live acceptance uses the shipped module in `claude-codex`, wide and narrow. A host without the original shell footer cannot prove coexistence; leave that footer untouched until cutover on its intended host.
 
-**Plan checkpoint 6.1 — reasoning effort:** verify startup, a session-only change without restarting, subagent isolation, and restoration after narrowing. The model and effort share one chip; plugin-panel and native-footer behavior are out of scope.
+**Plan checkpoint 6.1 — reasoning effort:** verify the effort chip precedes the model at startup, updates on a session-only change without restarting, ignores subagent changes, and returns after narrowing. Plugin-panel and native-footer behavior are out of scope.

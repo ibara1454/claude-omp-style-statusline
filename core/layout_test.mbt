@@ -22,7 +22,7 @@ test "wide row keeps the screenshot order and chip styling" {
   let row = @core.render_row(
     90,
     "Opus",
-    "high",
+    "xhigh",
     "~/work/app",
     ["main", "*2", "+1", "?3"],
     14,
@@ -31,7 +31,7 @@ test "wide row keeps the screenshot order and chip styling" {
   )
   assert_true(
     row_text(row).has_prefix(
-      " ◕ Opus (high) > 📁 ~/work/app > ⑂ main *2 +1 ?3 > ~$1.04 ▶",
+      " ◕ xhigh > Opus > 📁 ~/work/app > ⑂ main *2 +1 ?3 > ~$1.04 ▶",
     ),
   )
   assert_eq(row_color(row, "Opus"), ("#af5fff", "#121212"))
@@ -55,13 +55,13 @@ test "wide paths keep at most forty cells from their final components" {
 }
 
 ///|
-test "narrow layouts shorten the path before dropping cost git model and path" {
+test "shrinking hides cost, git, model, then effort, preserving the path last" {
   let at = fn(columns) {
     row_text(
       @core.render_row(
         columns,
         "M",
-        "",
+        "xhigh",
         "/abcdefghij",
         ["b", "", "", ""],
         -1,
@@ -70,14 +70,16 @@ test "narrow layouts shorten the path before dropping cost git model and path" {
       ),
     )
   }
-  assert_eq(at(38), " ◕ M > 📁 /abcdefghij > ⑂ b > ~$1.04 ▶")
-  assert_eq(at(37), " ◕ M > 📁 …bcdefghij > ⑂ b > ~$1.04 ▶")
-  assert_eq(at(32), " ◕ M > 📁 …ghij > ⑂ b > ~$1.04 ▶")
-  assert_true(at(31).has_prefix(" ◕ M > 📁 …ghij > ⑂ b ▶"))
-  assert_eq(at(23), " ◕ M > 📁 …ghij > ⑂ b ▶")
-  assert_true(at(22).has_prefix(" ◕ M > 📁 …ghij ▶"))
-  assert_eq(at(17), " ◕ M > 📁 …ghij ▶")
-  assert_true(at(16).has_prefix(" 📁 …ghij ▶"))
+  assert_eq(at(46), " ◕ xhigh > M > 📁 /abcdefghij > ⑂ b > ~$1.04 ▶")
+  assert_eq(at(45), " ◕ xhigh > M > 📁 …bcdefghij > ⑂ b > ~$1.04 ▶")
+  assert_eq(at(40), " ◕ xhigh > M > 📁 …ghij > ⑂ b > ~$1.04 ▶")
+  assert_true(at(39).has_prefix(" ◕ xhigh > M > 📁 …ghij > ⑂ b ▶"))
+  assert_eq(at(31), " ◕ xhigh > M > 📁 …ghij > ⑂ b ▶")
+  assert_true(at(30).has_prefix(" ◕ xhigh > M > 📁 …ghij ▶"))
+  assert_eq(at(25), " ◕ xhigh > M > 📁 …ghij ▶")
+  assert_true(at(24).has_prefix(" ◕ xhigh > 📁 …ghij ▶"))
+  assert_eq(at(21), " ◕ xhigh > 📁 …ghij ▶")
+  assert_true(at(20).has_prefix(" 📁 …ghij ▶"))
   assert_eq(at(11), " 📁 …ghij ▶")
   assert_eq(at(10), "")
   assert_eq(at(0), "")
@@ -86,15 +88,15 @@ test "narrow layouts shorten the path before dropping cost git model and path" {
 ///|
 test "the rule reserves eleven cells for both labels but not at the expense of the final chip" {
   let wide = row_text(
-    @core.render_row(29, "M", "", "/abcde", [], 14, 272000, -1.0),
+    @core.render_row(27, "M", "", "/abcde", [], 14, 272000, -1.0),
   )
-  assert_true(wide.has_prefix(" ◕ M > 📁 /abcde ▶"))
+  assert_true(wide.has_prefix(" M > 📁 /abcde ▶"))
   assert_true(wide.contains("14%"))
   assert_true(wide.contains("272K"))
   let narrow = row_text(
-    @core.render_row(28, "M", "", "/abcde", [], 14, 272000, -1.0),
+    @core.render_row(26, "M", "", "/abcde", [], 14, 272000, -1.0),
   )
-  assert_true(narrow.has_prefix(" ◕ M > 📁 …bcde ▶"))
+  assert_true(narrow.has_prefix(" M > 📁 …bcde ▶"))
   assert_true(narrow.contains("14%"))
   assert_true(narrow.contains("272K"))
   let last = row_text(
@@ -160,7 +162,7 @@ test "all runtime text is a single printable line" {
   )
   assert_true(
     row_text(row).has_prefix(
-      " ◕ Opus X [31m > 📁 ~/a  b c > ⑂ topic end *1 [3m ▶",
+      " Opus X [31m > 📁 ~/a  b c > ⑂ topic end *1 [3m ▶",
     ),
   )
 }

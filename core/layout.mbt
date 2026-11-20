@@ -94,13 +94,15 @@ pub fn render_row(
   cost_usd : Double,
 ) -> FixedArray[String] {
   guard columns > 0 else { return [] }
-  let model = sanitize_status_text(
-    if model.is_empty() || effort.is_empty() {
-      model
-    } else {
-      "\{model} (\{effort})"
-    },
-  )
+  let effort = match effort {
+    "low" => "○ low"
+    "medium" => "◔ medium"
+    "high" => "◑ high"
+    "xhigh" => "◕ xhigh"
+    "max" => "● max"
+    _ => sanitize_status_text(effort)
+  }
+  let model = sanitize_status_text(model)
   let path = sanitize_status_text(path)
   let (branch, unstaged, staged, untracked) = match git {
     [branch, unstaged, staged, untracked] =>
@@ -113,7 +115,8 @@ pub fn render_row(
     _ => ("", "", "", "")
   }
   let cost = cost_label(cost_usd)
-  let mut model_cells = chip_label_cells(model, 5)
+  let mut effort_cells = chip_label_cells(effort, 3)
+  let mut model_cells = chip_label_cells(model, 3)
   let path_width = terminal_cells(path)
   let path_limit = path_width.min(40)
   let path_cells = if path.is_empty() { 0 } else { path_limit + 6 }
@@ -153,8 +156,13 @@ pub fn render_row(
   let gauge_cells = gauge_min_width(percent, window)
   // Each chip accounts for three cells of group chrome: either the outer
   // two spaces and cap, or the separator and its spaces.
-  let mut group_cells = model_cells + path_cells + git_cells + cost_cells
-  let mut chips = (model_cells > 0).to_int() +
+  let mut group_cells = effort_cells +
+    model_cells +
+    path_cells +
+    git_cells +
+    cost_cells
+  let mut chips = (effort_cells > 0).to_int() +
+    (model_cells > 0).to_int() +
     (path_cells > 0).to_int() +
     (git_cells > 0).to_int() +
     (cost_cells > 0).to_int()
@@ -181,14 +189,24 @@ pub fn render_row(
     model_cells = 0
     chips -= 1
   }
+  if effort_cells > 0 &&
+    row_overflow(columns, group_cells, chips, gauge_cells) > 0 {
+    group_cells -= effort_cells
+    effort_cells = 0
+    chips -= 1
+  }
   guard chips > 0 && row_overflow(columns, group_cells, chips, gauge_cells) <= 0 else {
     return []
   }
 
   let out : Array[String] = []
+  if effort_cells > 0 {
+    begin_chip(out)
+    add_span(out, effort, "#af5fff", ChipBg)
+  }
   if model_cells > 0 {
     begin_chip(out)
-    add_span(out, "◕ " + model, "#af5fff", ChipBg)
+    add_span(out, model, "#af5fff", ChipBg)
   }
   if path_cells > 0 {
     begin_chip(out)
