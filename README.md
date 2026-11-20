@@ -1,41 +1,64 @@
 # MoonBit statusline for Claude Code
 
-On the configured Linode host, run `claude-codex` with no arguments in a terminal. Its launcher loads this checkout by absolute path, so you can start in the project you want to work on. The committed MoonBit ES module needs no compiler, Node.js, Bun, or package installation to load. The mod draws one terminal-only `AbovePrompt` row; it does not replace or configure the native footer.
+One row above your Claude Code prompt. The native footer stays untouched.
 
-The dark group shows reasoning effort first (`◕ xhigh > gpt-6-luna`), then the working path, Git branch and changed-path counts (`*` unstaged, `+` staged, `?` untracked), and estimated session cost. The circle belongs to effort: `○ low`, `◔ medium`, `◑ high`, `◕ xhigh`, `● max`. The rule shows percent used and the model window in tokens. Before the host reports usage, the window can appear without a percentage. A missing estimate is omitted; `~$` is not an invoice. There is no title, quota bar or subagent surcharge: Claude can retire agent records or restore a total without restoring its per-agent breakdown.
+**Wide terminal**
 
-At narrow widths the path shortens first. If that is not enough, cost, Git, model and effort disappear in that order, leaving the path last. Even the path can disappear at extreme widths. A resize only fits the cached values to the available terminal cells.
-
-**Changing effort:** confirming a level with `/effort` or the `/model` command updates the row immediately, including a session-only pick. The mod reads Claude's confirmation, not the requested level; cancelling leaves the chip alone. No Bash permission or model turn is needed. If an `Alt+P` picker changes only effort, Claude Code 2.1.329 emits no command confirmation: use `/effort status` to sync the row immediately, or let the next turn update it.
-
-**At startup:** the first statusline row waits for Claude's effective effort reading. The personal launcher supplies the plugin and a session-only allow rule for exactly `Bash(printenv CLAUDE_EFFORT)` on a plain interactive launch. It does not set the effort level or change global Claude settings. For an explicit launch or a different host, the equivalent command from this checkout is:
-
-```sh
-claude-codex --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'
+```text
+ ◕ xhigh > gpt-6-luna > 📁 ~/src/atlas > ⑂ main *2 +1 ?3 > ~$0.42 ▶────32%─────200K─
 ```
 
-The mod never requests permission or guesses from settings. When no effective level is reported, the row starts with the model name.
+**Same session, narrow terminal**
 
-### Where the values come from
+```text
+ 📁 …tlas ▶────32%─────200K─
+```
 
-- `hooks/register.tsx` reads the session model and usage, handles model and usage updates, and runs Git at startup, on an actual directory change and at main-turn completion. External edits during idle time remain stale until the next refresh. Failed or truncated Git output hides just Git.
-- `core/vcs.mbt` shortens the path and parses NUL-delimited Git porcelain v2; filenames are not labels. `core/metrics.mbt` formats the estimate and the embedded gauge. `core/layout.mbt` fits the colored spans to `bodyColumns`, following the [OMP 19 layout](https://github.com/can1357/oh-my-pi/blob/v19.0.0/packages/tui/src/status-line/component.ts).
-- `hooks/statusline.d.ts` describes the JS boundary. Claude imports only `hooks/statusline.js` at runtime; Unicode width and grapheme handling are compiled into it. See `THIRD-PARTY-NOTICES`.
+| Readout | What it means |
+| --- | --- |
+| `◕ xhigh` | Reasoning effort: `○ low` · `◔ medium` · `◑ high` · `◕ xhigh` · `● max` |
+| `⑂ main *2 +1 ?3` | On `main`: 2 unstaged paths, 1 staged, 3 untracked |
+| `~$0.42` | Estimated session cost, not a bill. Hidden if unknown. |
+| `32%` · `200K` | 32% of the 200K-token context window used. Until usage arrives, only the window size is shown. |
+
+The path shortens first. If space is still tight, the row drops cost → Git → model → effort → path.
+
+## Run
+
+If the plugin is already configured, run `claude` from your project. No build or package install needed.
+
+Otherwise, run from this plugin’s checkout:
+
+```sh
+claude --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'
+```
+
+The session-only permission lets the plugin read the current effort at startup. It doesn’t change your settings. If effort is unavailable, the row starts with the model.
+
+## When does it update?
+
+| Action | Result |
+| --- | --- |
+| Confirm `/effort` or `/model` | Effort updates immediately, even for a session-only change. Cancel to keep the old level. |
+| Change only effort with `Alt+P` (Claude Code 2.1.329) | Run `/effort status` to refresh, or wait for the next turn. |
+| Start a session, change directory, or finish a main turn | Git refreshes. External edits made while idle appear on the next refresh. |
 
 ## Development
 
-Use MoonBit `0.10.21+06da1ed44`, GNU Make, Node.js, Bun 1.4.4, and Claude Code 2.1.328. Install the [pinned MoonBit release](https://www.moonbitlang.com/download/) if needed:
+Build tools: MoonBit `0.10.21+06da1ed44` · GNU Make · Node.js · Bun `1.4.4` · Claude Code `2.1.328`.
 
 ```sh
 curl -fsSL https://cli.moonbitlang.com/install/unix.sh | SHELL=/bin/false bash -s -- '0.10.21+06da1ed44'
 export PATH="$HOME/.moon/bin:$PATH"
 bun install --frozen-lockfile
-make build    # regenerate hooks/statusline.js after changing the MoonBit source
-make check    # compare the shipped JS with a clean build and run unattended checks
+make build    # regenerate hooks/statusline.js
+make check    # verify the shipped module and run checks
 ```
 
-The first developer build needs the pinned MoonBit packages. The TypeScript check downloads and verifies the [Claude Mods declarations](https://github.com/anthropics/claude-code/blob/v2.1.328/mods/types/claude-code.d.ts). The mod itself does not use the network.
+The first build fetches MoonBit packages; the type check fetches [Claude’s declarations](https://github.com/anthropics/claude-code/blob/v2.1.328/mods/types/claude-code.d.ts). The plugin runs offline.
 
-`make check` runs JS-target MoonBit tests and a 90% production coverage-point gate, a real disposable Git repository, strict TS/lint and the official Claude plugin validator and terminal mount tests. Live acceptance uses the shipped module in `claude-codex`, wide and narrow. A host without the original shell footer cannot prove coexistence; leave that footer untouched until cutover on its intended host.
+`make check` covers MoonBit (90% minimum coverage), Git integration, types, lint, plugin validation and terminal mount tests.
 
-**Plan checkpoint 6.1 — reasoning effort:** verify the effort chip precedes the model at startup, updates on a session-only change without restarting, ignores subagent changes, and returns after narrowing. Plugin-panel and native-footer behavior are out of scope.
+**Live check:** launch `claude` on the intended host. Change effort for this session, then narrow and widen the terminal. The effort label should return before the model; subagent turns shouldn’t change it. Check the native footer there too.
+
+[Session hooks](hooks/register.tsx) · [MoonBit layout](core/layout.mbt) · [Original OMP layout](https://github.com/can1357/oh-my-pi/blob/v19.0.0/packages/tui/src/status-line/component.ts) · [Third-party notices](THIRD-PARTY-NOTICES)
