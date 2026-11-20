@@ -1,4 +1,4 @@
-import type { On, ProcessRunResult, SessionUsage } from 'claude-code'
+import type { ModelEffort, On, ProcessRunResult, SessionUsage } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 const band = {
@@ -198,5 +198,75 @@ test('usage and estimated cost follow startup, measurements, model switches and 
   expect(await ui.find({ type: 'Text', text: '~$1.23' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /\d+%/ })).toBeUndefined()
   expect(usageReads).toBe(3)
+  await ui.unmount()
+})
+
+test('the model chip tracks main-thread effort without borrowing a subagent level', async ($, on) => {
+  stubSession(on)
+  on('process.run', () => ({ value: gitStatus('main') }))
+  on('tool.check', { tool: 'Bash' }, () => ({ decision: 'ask' }))
+  on('turn.step', async function* (_$, e) {
+    yield { kind: 'text', index: 0, text: 'answer' }
+    return { turnId: e.turnId, index: e.index, answer: 'answer', toolUses: [], stopReason: null, usage: null }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/dev/acme' })
+  const ui = await $.ui.mount(band)
+  const chip = (text: string) => ui.find({ type: 'Text', text: new RegExp(`^◕ model-alpha${text}$`) })
+  async function step(effort?: ModelEffort, agentId?: string) {
+    const chunks = []
+    for await (const chunk of $.turn.step({ turnId: agentId ?? 'main', index: 0, model: 'model-alpha', messageCount: 1, effort, agentId })) {
+      if (chunk.kind === 'text') chunks.push(chunk.text)
+    }
+    expect(chunks).toEqual(['answer'])
+  }
+  expect(await chip('')).toBeDefined()
+  await step('medium')
+  expect(await chip(' \\(medium\\)')).toBeDefined()
+  await step('low', 'child')
+  expect(await chip(' \\(medium\\)')).toBeDefined()
+  await step('xhigh')
+  await ui.redraw({ ...band.props, bodyColumns: 12 })
+  expect(await chip(' \\(xhigh\\)')).toBeUndefined()
+  await ui.redraw(band.props)
+  expect(await chip(' \\(xhigh\\)')).toBeDefined()
+  await step()
+  expect(await chip('')).toBeDefined()
+  await ui.unmount()
+})
+
+test('idle effort follows the allowed host reading, not the requested level or previous model', async ($, on) => {
+  stubSession(on)
+  on('process.run', () => ({ value: gitStatus('main') }))
+  let decision: 'allow' | 'deny' = 'allow'
+  let level = 'low'
+  let reads = 0
+  on('tool.check', { tool: 'Bash' }, (_$, e) => {
+    expect(e.input).toEqual({ command: 'printenv CLAUDE_EFFORT' })
+    return { decision }
+  })
+  on('tool.call', { tool: 'Bash' }, (_$, e) => {
+    expect(e.command).toBe('printenv CLAUDE_EFFORT')
+    reads++
+    return { result: level, text: level }
+  })
+  on('command.run', { command: 'effort' }, () => {
+    level = 'high' // The host capped the requested max.
+    return {}
+  })
+  on('classic.PostModelSwitch', () => ({}))
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/dev/acme' })
+  const ui = await $.ui.mount(band)
+  expect(await ui.find({ type: 'Text', text: /^◕ model-alpha \(low\)$/ })).toBeDefined()
+  await $.command.run({
+    command: 'effort', args: 'max', origin: { kind: 'composer' },
+    presentation: { columns: 80, isFullscreen: false },
+  })
+  expect(await ui.find({ type: 'Text', text: /^◕ model-alpha \(high\)$/ })).toBeDefined()
+  await ui.redraw()
+  expect(reads).toBe(2)
+  decision = 'deny'
+  await $.classic.PostModelSwitch(modelSwitch)
+  expect(await ui.find({ type: 'Text', text: /^◕ model-beta$/ })).toBeDefined()
+  expect(reads).toBe(2)
   await ui.unmount()
 })

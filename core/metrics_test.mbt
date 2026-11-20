@@ -1,6 +1,8 @@
 ///|
 fn metrics_row(percent : Int32, window : Int32, usd : Double) -> String {
-  row_text(@core.render_row(90, "model", "~/repo", [], percent, window, usd))
+  row_text(
+    @core.render_row(90, "model", "", "~/repo", [], percent, window, usd),
+  )
 }
 
 ///|

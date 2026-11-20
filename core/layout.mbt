@@ -86,6 +86,7 @@ fn row_overflow(
 pub fn render_row(
   columns : Int32,
   model : String,
+  effort : String,
   path : String,
   git : FixedArray[String],
   percent : Int32,
@@ -93,7 +94,13 @@ pub fn render_row(
   cost_usd : Double,
 ) -> FixedArray[String] {
   guard columns > 0 else { return [] }
-  let model = sanitize_status_text(model)
+  let model = sanitize_status_text(
+    if model.is_empty() || effort.is_empty() {
+      model
+    } else {
+      "\{model} (\{effort})"
+    },
+  )
   let path = sanitize_status_text(path)
   let (branch, unstaged, staged, untracked) = match git {
     [branch, unstaged, staged, untracked] =>

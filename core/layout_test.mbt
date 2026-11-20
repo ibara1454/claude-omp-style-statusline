@@ -22,6 +22,7 @@ test "wide row keeps the screenshot order and chip styling" {
   let row = @core.render_row(
     90,
     "Opus",
+    "high",
     "~/work/app",
     ["main", "*2", "+1", "?3"],
     14,
@@ -30,7 +31,7 @@ test "wide row keeps the screenshot order and chip styling" {
   )
   assert_true(
     row_text(row).has_prefix(
-      " ◕ Opus > 📁 ~/work/app > ⑂ main *2 +1 ?3 > ~$1.04 ▶",
+      " ◕ Opus (high) > 📁 ~/work/app > ⑂ main *2 +1 ?3 > ~$1.04 ▶",
     ),
   )
   assert_eq(row_color(row, "Opus"), ("#af5fff", "#121212"))
@@ -47,7 +48,7 @@ test "wide row keeps the screenshot order and chip styling" {
 ///|
 test "wide paths keep at most forty cells from their final components" {
   let path = "/abcdefghijklmnopqrst日本語abcdefghijklmnopqrst"
-  let row = row_text(@core.render_row(80, "", path, [], -1, 0, -1.0))
+  let row = row_text(@core.render_row(80, "", "", path, [], -1, 0, -1.0))
   assert_true(
     row.has_prefix(" 📁 …hijklmnopqrst日本語abcdefghijklmnopqrst ▶"),
   )
@@ -60,6 +61,7 @@ test "narrow layouts shorten the path before dropping cost git model and path" {
       @core.render_row(
         columns,
         "M",
+        "",
         "/abcdefghij",
         ["b", "", "", ""],
         -1,
@@ -83,17 +85,21 @@ test "narrow layouts shorten the path before dropping cost git model and path" {
 
 ///|
 test "the rule reserves eleven cells for both labels but not at the expense of the final chip" {
-  let wide = row_text(@core.render_row(29, "M", "/abcde", [], 14, 272000, -1.0))
+  let wide = row_text(
+    @core.render_row(29, "M", "", "/abcde", [], 14, 272000, -1.0),
+  )
   assert_true(wide.has_prefix(" ◕ M > 📁 /abcde ▶"))
   assert_true(wide.contains("14%"))
   assert_true(wide.contains("272K"))
   let narrow = row_text(
-    @core.render_row(28, "M", "/abcde", [], 14, 272000, -1.0),
+    @core.render_row(28, "M", "", "/abcde", [], 14, 272000, -1.0),
   )
   assert_true(narrow.has_prefix(" ◕ M > 📁 …bcde ▶"))
   assert_true(narrow.contains("14%"))
   assert_true(narrow.contains("272K"))
-  let last = row_text(@core.render_row(22, "", "/abcde", [], 14, 272000, -1.0))
+  let last = row_text(
+    @core.render_row(22, "", "", "/abcde", [], 14, 272000, -1.0),
+  )
   assert_true(last.has_prefix(" 📁 /abcde ▶"))
   assert_false(last.contains("%"))
   assert_false(last.contains("272K"))
@@ -102,21 +108,30 @@ test "the rule reserves eleven cells for both labels but not at the expense of t
 ///|
 test "cell clipping never keeps half of a Japanese wide character" {
   let japanese = "/日本語aaaa"
-  let narrow = @core.render_row(16, "", japanese, [], -1, 0, -1.0)
-  let wide = @core.render_row(17, "", japanese, [], -1, 0, -1.0)
+  let narrow = @core.render_row(16, "", "", japanese, [], -1, 0, -1.0)
+  let wide = @core.render_row(17, "", "", japanese, [], -1, 0, -1.0)
   assert_eq(row_text(narrow), " 📁 …本語aaaa ▶─")
   assert_eq(row_text(wide), " 📁 /日本語aaaa ▶")
 }
 
 ///|
 test "a decomposed accent occupies one cell and stays attached to its base" {
-  let row = @core.render_row(11, "", "/xxe\u0301abc", [], -1, 0, -1.0)
+  let row = @core.render_row(11, "", "", "/xxe\u0301abc", [], -1, 0, -1.0)
   assert_eq(row_text(row), " 📁 …e\u0301abc ▶")
 }
 
 ///|
 test "Arabic letters occupy separate terminal cells even if the font joins them" {
-  let row = @core.render_row(12, "model", "/repo/لا", [], 14, 200000, -1.0)
+  let row = @core.render_row(
+    12,
+    "model",
+    "",
+    "/repo/لا",
+    [],
+    14,
+    200000,
+    -1.0,
+  )
   assert_eq(row_text(row), " 📁 …o/لا ▶─")
 }
 
@@ -124,7 +139,7 @@ test "Arabic letters occupy separate terminal cells even if the font joins them"
 test "growing a row restores one intact two-cell ZWJ emoji" {
   let path = "/abc👩‍🔬qrst"
   let at = fn(columns) {
-    row_text(@core.render_row(columns, "", path, [], -1, 0, -1.0))
+    row_text(@core.render_row(columns, "", "", path, [], -1, 0, -1.0))
   }
   assert_eq(at(12), " 📁 …qrst ▶─")
   assert_eq(at(13), " 📁 …👩‍🔬qrst ▶")
@@ -136,6 +151,7 @@ test "all runtime text is a single printable line" {
   let row = @core.render_row(
     90,
     "Opus\u0007\u202eX\u202c\u001b[31m",
+    "",
     "~/a\r\nb\u2028c",
     ["topic\u2029end", "*1\u009b[3m", "", ""],
     -1,

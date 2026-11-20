@@ -3,6 +3,7 @@ import { formatPath, parseStatus, renderRow } from './statusline.js'
 
 type GitSnapshot = { generation: number; segments: string[] }
 type UsageSnapshot = { generation: number; percent: number; window: number; costUsd: number }
+type EffortSnapshot = { generation: number; level: string }
 
 async function refreshGit($: EngineInterface, directory: string, git: GitSnapshot) {
   const generation = ++git.generation
@@ -31,8 +32,30 @@ async function refreshUsage($: EngineInterface, usage: UsageSnapshot) {
   $.ui.invalidate('ui.render')
 }
 
+async function refreshEffort($: EngineInterface, effort: EffortSnapshot) {
+  const generation = ++effort.generation
+  const command = 'printenv CLAUDE_EFFORT'
+  let level = ''
+  try {
+    // Claude sets this in Bash's environment, not the mod process's. Never turn an ask into an allow.
+    const { decision } = await $.tool.check({ tool: 'Bash', input: { command } })
+    if (decision === 'allow' && generation === effort.generation) {
+      const result = await $.tool.call({ tool: 'Bash', command })
+      const text = result.text?.trim()
+      if (!result.isError && text && /^(low|medium|high|xhigh|max)$/.test(text)) level = text
+    }
+  } catch {
+    // Bash may be unavailable. The next main turn supplies effort without a tool.
+  }
+  if (generation === effort.generation && effort.level !== level) {
+    effort.level = level
+    $.ui.invalidate('ui.render')
+  }
+}
+
 export function register(on: On) {
   let model: string | undefined
+  const effort: EffortSnapshot = { generation: 0, level: '' }
   let cwd: string | undefined
   let home = ''
   let path = ''
@@ -41,7 +64,7 @@ export function register(on: On) {
 
   on('session.start', { surface: 'terminal' }, async ($, e, next) => {
     cwd = e.cwd
-    const gitReady = refreshGit($, cwd, git)
+    const vcsAndEffort = Promise.all([refreshGit($, cwd, git), refreshEffort($, effort)])
     const [activeModel, userHome] = await Promise.all([
       $.session.model(), $.env.get('HOME'), refreshUsage($, usage),
     ])
@@ -49,7 +72,7 @@ export function register(on: On) {
     home = userHome ?? ''
     path = formatPath(cwd, home)
     $.ui.invalidate('ui.render')
-    await gitReady
+    await vcsAndEffort
     return next(e)
   })
 
@@ -79,12 +102,33 @@ export function register(on: On) {
     return next(e)
   })
 
+  on('turn.step', async function* ($, e, next) {
+    if (cwd !== undefined && e.agentId === undefined) {
+      effort.generation++
+      const level = e.effort?.toString() ?? ''
+      if (effort.level !== level) {
+        effort.level = level
+        $.ui.invalidate('ui.render')
+      }
+    }
+    return yield* next(e)
+  })
+
+  on('command.run', { command: /^(effort|model)$/ }, async ($, e, next) => {
+    const result = await next(e)
+    if (cwd !== undefined && !(e.command === 'effort' && e.args.trim() === 'status')) {
+      await refreshEffort($, effort)
+    }
+    return result
+  })
+
   on('classic.PostModelSwitch', async ($, e, next) => {
     if (cwd !== undefined && e.agent_id === undefined) {
       model = e.to_model
+      effort.level = ''
       usage.percent = -1
       usage.window = 0
-      await refreshUsage($, usage)
+      await Promise.all([refreshUsage($, usage), refreshEffort($, effort)])
     }
     return next(e)
   })
@@ -98,7 +142,7 @@ export function register(on: On) {
     if (!model || e.props.hasSurvey) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     const columns = e.props.bodyColumns
-    const spans = renderRow(columns, model, path, git.segments, usage.percent, usage.window, usage.costUsd)
+    const spans = renderRow(columns, model, effort.level, path, git.segments, usage.percent, usage.window, usage.costUsd)
     const children = []
     for (let i = 0; i < spans.length; i += 3) {
       children.push(
