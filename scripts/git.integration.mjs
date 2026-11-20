@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import { parseStatus } from '../hooks/statusline.js'
 
 function repository(t) {
-  const cwd = mkdtempSync(join(tmpdir(), 'omp-statusline-git-'))
+  const cwd = mkdtempSync(join(tmpdir(), 'claude-omp-style-statusline-git-'))
   t.after(() => rmSync(cwd, { force: true, recursive: true }))
   // Inherited Git settings could redirect the test's writes out of this directory.
   const env = { PATH: process.env.PATH, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' }

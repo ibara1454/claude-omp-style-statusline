@@ -1,0 +1,12 @@
+{
+  "name": "claude-omp-style-statusline",
+  "description": "The OMP-style statusline for Claude Code.",
+  "owner": { "name": "Chiajun Wang" },
+  "plugins": [
+    {
+      "name": "claude-omp-style-statusline",
+      "source": "./",
+      "description": "Show model, path, Git status, cost and context usage above the Claude Code prompt."
+    }
+  ]
+}

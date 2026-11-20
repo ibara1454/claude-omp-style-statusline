@@ -1,5 +1,5 @@
 {
-  "name": "omp-statusline",
+  "name": "claude-omp-style-statusline",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.4",

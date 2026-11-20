@@ -23,11 +23,19 @@ One row above your Claude Code prompt. The native footer stays untouched.
 
 The path shortens first. If space is still tight, the row drops cost → Git → model → effort → path.
 
-## Run
+## Install
 
-If the plugin is already configured, run `claude` from your project. No build or package install needed.
+Run this in your shell to add the GitHub marketplace and install the plugin for your user account:
 
-Otherwise, run from this plugin’s checkout:
+```sh
+claude plugin install claude-omp-style-statusline --marketplace ibara1454/claude-omp-style-statusline
+```
+
+Start a new `claude` session from your project, or run `/reload-plugins` in an open session. The status row appears above the prompt. No build is needed.
+
+## Try without installing
+
+For one session, run this from a checkout of the plugin:
 
 ```sh
 claude --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'

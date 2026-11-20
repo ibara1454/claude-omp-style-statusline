@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "omp-statusline",
+      "name": "claude-omp-style-statusline",
       "devDependencies": {
         "oxlint": "1.94.0",
         "typescript": "6.0.2",
