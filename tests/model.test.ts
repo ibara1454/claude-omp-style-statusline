@@ -235,8 +235,9 @@ test('the effort chip tracks main-thread effort without borrowing a subagent lev
   await ui.unmount()
 })
 
-test('startup reads allowed effort once and a denied model switch clears it', async ($, on) => {
+test('the first startup row includes the resolved effort and a denied switch clears it', async ($, on) => {
   stubSession(on)
+  const clock = mock.clock(on)
   on('process.run', () => ({ value: gitStatus('main') }))
   let decision: 'allow' | 'deny' = 'allow'
   let reads = 0
@@ -244,14 +245,20 @@ test('startup reads allowed effort once and a denied model switch clears it', as
     expect(e.input).toEqual({ command: 'printenv CLAUDE_EFFORT' })
     return { decision }
   })
-  on('tool.call', { tool: 'Bash' }, (_$, e) => {
+  on('tool.call', { tool: 'Bash' }, async (_$, e) => {
     expect(e.command).toBe('printenv CLAUDE_EFFORT')
     reads++
+    await clock.sleep(100)
     return { result: 'low', text: 'low' }
   })
   on('classic.PostModelSwitch', () => ({}))
-  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/dev/acme' })
+  const started = $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/dev/acme' })
+  await clock.settle()
   const ui = await $.ui.mount(band)
+  expect(await ui.find({ type: 'Text', text: /^model-alpha$/ })).toBeUndefined()
+  await clock.advance(100)
+  await started
+  expect(await ui.find({ type: 'Text', text: /^model-alpha$/ })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^○ low$/ })).toBeDefined()
   await ui.redraw()
   expect(reads).toBe(1)

@@ -1,6 +1,6 @@
 # MoonBit statusline for Claude Code
 
-Run `claude-codex --plugin-dir .` from the checkout. The committed MoonBit ES module needs no compiler, Node.js, Bun, or package installation to load. The mod draws one terminal-only `AbovePrompt` row; it does not replace or configure the native footer.
+On the configured Linode host, run `claude-codex` with no arguments in a terminal. Its launcher loads this checkout by absolute path, so you can start in the project you want to work on. The committed MoonBit ES module needs no compiler, Node.js, Bun, or package installation to load. The mod draws one terminal-only `AbovePrompt` row; it does not replace or configure the native footer.
 
 The dark group shows reasoning effort first (`◕ xhigh > gpt-6-luna`), then the working path, Git branch and changed-path counts (`*` unstaged, `+` staged, `?` untracked), and estimated session cost. The circle belongs to effort: `○ low`, `◔ medium`, `◑ high`, `◕ xhigh`, `● max`. The rule shows percent used and the model window in tokens. Before the host reports usage, the window can appear without a percentage. A missing estimate is omitted; `~$` is not an invoice. There is no title, quota bar or subagent surcharge: Claude can retire agent records or restore a total without restoring its per-agent breakdown.
 
@@ -8,7 +8,7 @@ At narrow widths the path shortens first. If that is not enough, cost, Git, mode
 
 **Changing effort:** confirming a level with `/effort` or the `/model` command updates the row immediately, including a session-only pick. The mod reads Claude's confirmation, not the requested level; cancelling leaves the chip alone. No Bash permission or model turn is needed. If an `Alt+P` picker changes only effort, Claude Code 2.1.329 emits no command confirmation: use `/effort status` to sync the row immediately, or let the next turn update it.
 
-**At startup:** to show effort before the first command or main-thread model request, optionally allow this read-only lookup for the session:
+**At startup:** the first statusline row waits for Claude's effective effort reading. The personal launcher supplies the plugin and a session-only allow rule for exactly `Bash(printenv CLAUDE_EFFORT)` on a plain interactive launch. It does not set the effort level or change global Claude settings. For an explicit launch or a different host, the equivalent command from this checkout is:
 
 ```sh
 claude-codex --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'

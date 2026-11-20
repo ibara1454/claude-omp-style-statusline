@@ -84,15 +84,15 @@ export function register(on: On) {
 
   on('session.start', { surface: 'terminal' }, async ($, e, next) => {
     cwd = e.cwd
-    const vcsAndEffort = Promise.all([refreshGit($, cwd, git), refreshEffort($, effort)])
+    const gitReady = refreshGit($, cwd, git)
     const [activeModel, userHome] = await Promise.all([
-      $.session.model(), $.env.get('HOME'), refreshUsage($, usage),
+      $.session.model(), $.env.get('HOME'), refreshUsage($, usage), refreshEffort($, effort),
     ])
     model ??= activeModel
     home = userHome ?? ''
     path = formatPath(cwd, home)
     $.ui.invalidate('ui.render')
-    await vcsAndEffort
+    await gitReady
     return next(e)
   })
 
