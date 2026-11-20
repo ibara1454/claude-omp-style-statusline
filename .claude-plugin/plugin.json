@@ -1,6 +1,7 @@
 {
   "name": "omp-statusline",
   "version": "0.1.0",
+  "license": "MIT",
   "description": "A MoonBit-rendered model, path, Git, cost and context row above the Claude Code terminal prompt.",
   "author": { "name": "Chiajun Wang" }
 }
