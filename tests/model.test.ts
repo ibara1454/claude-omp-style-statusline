@@ -235,11 +235,10 @@ test('the effort chip tracks main-thread effort without borrowing a subagent lev
   await ui.unmount()
 })
 
-test('idle effort follows the allowed host reading, not the requested level or previous model', async ($, on) => {
+test('startup reads allowed effort once and a denied model switch clears it', async ($, on) => {
   stubSession(on)
   on('process.run', () => ({ value: gitStatus('main') }))
   let decision: 'allow' | 'deny' = 'allow'
-  let level = 'low'
   let reads = 0
   on('tool.check', { tool: 'Bash' }, (_$, e) => {
     expect(e.input).toEqual({ command: 'printenv CLAUDE_EFFORT' })
@@ -248,27 +247,60 @@ test('idle effort follows the allowed host reading, not the requested level or p
   on('tool.call', { tool: 'Bash' }, (_$, e) => {
     expect(e.command).toBe('printenv CLAUDE_EFFORT')
     reads++
-    return { result: level, text: level }
-  })
-  on('command.run', { command: 'effort' }, () => {
-    level = 'high' // The host capped the requested max.
-    return {}
+    return { result: 'low', text: 'low' }
   })
   on('classic.PostModelSwitch', () => ({}))
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/dev/acme' })
   const ui = await $.ui.mount(band)
   expect(await ui.find({ type: 'Text', text: /^○ low$/ })).toBeDefined()
-  await $.command.run({
-    command: 'effort', args: 'max', origin: { kind: 'composer' },
-    presentation: { columns: 80, isFullscreen: false },
-  })
-  expect(await ui.find({ type: 'Text', text: /^◑ high$/ })).toBeDefined()
   await ui.redraw()
-  expect(reads).toBe(2)
+  expect(reads).toBe(1)
   decision = 'deny'
   await $.classic.PostModelSwitch(modelSwitch)
   expect(await ui.find({ type: 'Text', text: /^model-beta$/ })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /^◑ high$/ })).toBeUndefined()
-  expect(reads).toBe(2)
+  expect(await ui.find({ type: 'Text', text: /^○ low$/ })).toBeUndefined()
+  expect(reads).toBe(1)
+  await ui.unmount()
+})
+
+test('confirmed effort and model picks redraw the idle band without Bash or another turn', async ($, on) => {
+  stubSession(on)
+  on('process.run', () => ({ value: gitStatus('main') }))
+  on('tool.check', { tool: 'Bash' }, () => ({ decision: 'deny' }))
+  on('session.append', (_$, e, next) => next(e))
+  on('turn.step', async function* (_$, e) {
+    yield { kind: 'text', index: 0, text: 'done' }
+    return { turnId: e.turnId, index: e.index, answer: 'done', toolUses: [], stopReason: null, usage: null }
+  })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/home/dev/acme' })
+  const ui = await $.ui.mount(band)
+  let row = 0
+  async function commandOutput(command: string, output: string, agentId?: string) {
+    for (const text of [`<command-name>/${command}</command-name>`, `<local-command-stdout>${output}</local-command-stdout>`]) {
+      await $.session.append({
+        door: 'command', origin: { kind: 'unclassified' }, uuid: String(++row), agentId,
+        message: { type: 'user', content: [{ type: 'text', text }] },
+      })
+    }
+  }
+  await commandOutput('effort', "Effort 'max' exceeds the cap for model-alpha set by your settings or organization; set to 'medium' instead (this session only): Balanced approach")
+  expect(await ui.find({ type: 'Text', text: /^◔ medium$/ })).toBeDefined()
+  await commandOutput('effort', 'Cancelled')
+  await commandOutput('other', 'Set effort level to max (this session only): Maximum capability')
+  await commandOutput('effort', 'Set effort level to max (this session only): Maximum capability', 'child')
+  expect(await ui.find({ type: 'Text', text: /^◔ medium$/ })).toBeDefined()
+  await commandOutput('model', 'Set model to `model-alpha` for this session only with `xhigh` effort')
+  expect(await ui.find({ type: 'Text', text: /^◕ xhigh$/ })).toBeDefined()
+  const step = { turnId: 'old-turn', index: 1, model: 'model-alpha', messageCount: 3, effort: 'low' } as const
+  for await (const _ of $.turn.step(step)) { /* drain the ongoing turn */ }
+  expect(await ui.find({ type: 'Text', text: /^◕ xhigh$/ })).toBeDefined()
+  await commandOutput('effort', 'Set effort level to low (saved as your default for new sessions): Quick')
+  expect(await ui.find({ type: 'Text', text: /^○ low$/ })).toBeDefined()
+  await commandOutput('effort', 'Effort level set to auto')
+  expect(await ui.find({ type: 'Text', text: /^○ low$/ })).toBeUndefined()
+  await commandOutput('effort', 'Effort level: auto (currently medium)')
+  expect(await ui.find({ type: 'Text', text: /^◔ medium$/ })).toBeDefined()
+  for await (const _ of $.turn.step({ ...step, turnId: 'next-turn', index: 0 })) { /* drain the new turn */ }
+  expect(await ui.find({ type: 'Text', text: /^○ low$/ })).toBeDefined()
   await ui.unmount()
 })

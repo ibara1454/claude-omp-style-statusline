@@ -32,6 +32,12 @@ async function refreshUsage($: EngineInterface, usage: UsageSnapshot) {
   $.ui.invalidate('ui.render')
 }
 
+function setEffort($: EngineInterface, effort: EffortSnapshot, level: string) {
+  if (effort.level === level) return
+  effort.level = level
+  $.ui.invalidate('ui.render')
+}
+
 async function refreshEffort($: EngineInterface, effort: EffortSnapshot) {
   const generation = ++effort.generation
   const command = 'printenv CLAUDE_EFFORT'
@@ -47,15 +53,29 @@ async function refreshEffort($: EngineInterface, effort: EffortSnapshot) {
   } catch {
     // Bash may be unavailable. The next main turn supplies effort without a tool.
   }
-  if (generation === effort.generation && effort.level !== level) {
-    effort.level = level
-    $.ui.invalidate('ui.render')
-  }
+  if (generation === effort.generation) setEffort($, effort, level)
+}
+
+// Picker commands return a panel handle. Their applied level arrives on the subsequent command output row.
+function confirmedEffort(command: string, output: string): string | undefined {
+  const match = command === 'model'
+    ? /^Set model to `[^`]+`[^`\n]*?(?: with `| · effort stays )(\w+)(?:` effort\b| \(set by )/.exec(output)
+    : /^Set effort level to (\w+)\b/.exec(output)
+      ?? /^Effort '[^']+' exceeds the cap[^;\n]*; set to '(\w+)' instead\b/.exec(output)
+      ?? /^(?:Not applied: )?CLAUDE_CODE_EFFORT_LEVEL=(\w+) overrides\b/.exec(output)
+      ?? /^Current effort level: (\w+)\b/.exec(output)
+      ?? /^Effort level: auto \(currently (\w+)\)/.exec(output)
+      ?? /^Effort level(?: set to|:) (auto)\b/.exec(output)
+  const level = match?.[1]
+  if (level === 'auto' || level === 'unset') return ''
+  return level && /^(low|medium|high|xhigh|max)$/.test(level) ? level : undefined
 }
 
 export function register(on: On) {
   let model: string | undefined
   const effort: EffortSnapshot = { generation: 0, level: '' }
+  let pendingCommand: string | undefined
+  let keepPickedEffort = false
   let cwd: string | undefined
   let home = ''
   let path = ''
@@ -103,23 +123,40 @@ export function register(on: On) {
   })
 
   on('turn.step', async function* ($, e, next) {
-    if (cwd !== undefined && e.agentId === undefined) {
+    if (cwd !== undefined && e.agentId === undefined && (e.index === 0 || !keepPickedEffort)) {
+      // A later step of an already-running turn can still carry the pre-picker effort.
+      keepPickedEffort = false
       effort.generation++
-      const level = e.effort?.toString() ?? ''
-      if (effort.level !== level) {
-        effort.level = level
-        $.ui.invalidate('ui.render')
-      }
+      setEffort($, effort, e.effort?.toString() ?? '')
     }
     return yield* next(e)
   })
 
-  on('command.run', { command: /^(effort|model)$/ }, async ($, e, next) => {
-    const result = await next(e)
-    if (cwd !== undefined && !(e.command === 'effort' && e.args.trim() === 'status')) {
-      await refreshEffort($, effort)
+  on('session.append', { door: 'command' }, async ($, e, next) => {
+    const block = e.message.content[0]
+    if (cwd === undefined || e.agentId !== undefined || block?.type !== 'text' || typeof block.text !== 'string') {
+      return next(e)
     }
-    return result
+    const text = block.text
+    if (text.startsWith('<command-name>')) {
+      pendingCommand = /^<command-name>\/(effort|model)<\/command-name>/.exec(text)?.[1]
+    } else if (pendingCommand) {
+      const output = /^<local-command-stdout>([\s\S]*)<\/local-command-stdout>$/.exec(text)?.[1]
+      if (output !== undefined) {
+        const command = pendingCommand
+        pendingCommand = undefined
+        const level = confirmedEffort(command, output)
+        if (level !== undefined) {
+          effort.generation++
+          keepPickedEffort = true
+          setEffort($, effort, level)
+        }
+        if (output === 'Effort level set to auto' || (command === 'model' && level === undefined && output.startsWith('Set model to '))) {
+          await refreshEffort($, effort)
+        }
+      }
+    }
+    return next(e)
   })
 
   on('classic.PostModelSwitch', async ($, e, next) => {

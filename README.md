@@ -6,13 +6,15 @@ The dark group shows reasoning effort first (`◕ xhigh > gpt-6-luna`), then the
 
 At narrow widths the path shortens first. If that is not enough, cost, Git, model and effort disappear in that order, leaving the path last. Even the path can disappear at extreme widths. A resize only fits the cached values to the available terminal cells.
 
-**Effort before the first turn:** Claude reports the level directly on main-thread model requests. To also see it at startup and immediately after `/effort` or `/model`, allow one read-only command for this session:
+**Changing effort:** confirming a level with `/effort` or the `/model` command updates the row immediately, including a session-only pick. The mod reads Claude's confirmation, not the requested level; cancelling leaves the chip alone. No Bash permission or model turn is needed. If an `Alt+P` picker changes only effort, Claude Code 2.1.329 emits no command confirmation: use `/effort status` to sync the row immediately, or let the next turn update it.
+
+**At startup:** to show effort before the first command or main-thread model request, optionally allow this read-only lookup for the session:
 
 ```sh
 claude-codex --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'
 ```
 
-The mod never requests permission or guesses a level from settings. If that read isn't allowed, the effort chip waits for the next main-thread request. When no level is reported, the row starts directly with the model name.
+The mod never requests permission or guesses from settings. When no effective level is reported, the row starts with the model name.
 
 ### Where the values come from
 
