@@ -61,4 +61,16 @@ The first build fetches MoonBit packages; the type check fetches [Claude’s dec
 
 **Live check:** launch `claude` on the intended host. Change effort for this session, then narrow and widen the terminal. The effort label should return before the model; subagent turns shouldn’t change it. Check the native footer there too.
 
+### Pull requests and repository protections
+
+Open a pull request against `main` and wait for **Repository checks**. It runs `make check` on GitHub without repository secrets, on pull requests and pushes to `main`. Dependabot proposes weekly updates for Bun dependencies and GitHub Actions. When the MoonBit installer changes, review it before updating its checksum in CI.
+
+The [default-branch ruleset](.github/rulesets/main.json) is configuration for GitHub, not a policy GitHub loads from the checkout. Once the private repository has a plan that supports rulesets and CI has passed, an admin can activate it **once** from this checkout:
+
+```sh
+gh api --method POST 'repos/{owner}/{repo}/rulesets' --input .github/rulesets/main.json
+```
+
+The rule requires an up-to-date PR, passing **Repository checks** from GitHub Actions, and resolved review threads. It blocks force pushes and deletion. Zero approvals are required so the sole maintainer can merge; raise that to one when a second reviewer is available.
+
 [Session hooks](hooks/register.tsx) · [MoonBit layout](core/layout.mbt) · [Original OMP layout](https://github.com/can1357/oh-my-pi/blob/v19.0.0/packages/tui/src/status-line/component.ts) · [Third-party notices](THIRD-PARTY-NOTICES)
