@@ -2,7 +2,7 @@ import type { ModelEffort, On, ProcessRunResult, SessionUsage } from 'claude-cod
 import { expect, mock, test } from 'claude-code/testing'
 
 const band = {
-  plugin: 'omp-statusline',
+  plugin: 'omp-style-statusline',
   component: 'AbovePrompt',
   surface: 'terminal',
   viewport: { columns: 80, rows: 24 },
