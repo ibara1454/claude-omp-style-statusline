@@ -1,5 +1,6 @@
 {
-  "name": "claude-omp-style-statusline",
+  "name": "omp-style-statusline",
+  "displayName": "claude-omp-style-statusline",
   "version": "0.1.0",
   "license": "MIT",
   "description": "A MoonBit-rendered model, path, Git, cost and context row above the Claude Code terminal prompt.",

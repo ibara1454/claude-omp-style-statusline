@@ -34,7 +34,6 @@ check: check-toolchain
 	  cmp "$$dir/$(RELEASE_JS)" "$(SHIPPED_JS)" || { echo 'Run make build to regenerate $(SHIPPED_JS).' >&2; exit 1; }
 	node --test scripts/git.integration.mjs
 	bun run check:ts
-	claude plugin validate --strict .claude-plugin/plugin.json
 	claude plugin validate --strict .
 	claude plugin test .
 

@@ -4,7 +4,8 @@
   "owner": { "name": "Chiajun Wang" },
   "plugins": [
     {
-      "name": "claude-omp-style-statusline",
+      "name": "omp-style-statusline",
+      "displayName": "claude-omp-style-statusline",
       "source": "./",
       "description": "Show model, path, Git status, cost and context usage above the Claude Code prompt."
     }

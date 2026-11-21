@@ -25,13 +25,13 @@ The path shortens first. If space is still tight, the row drops cost → Git →
 
 ## Install
 
-Run this in your shell to add the GitHub marketplace and install the plugin for your user account:
+The plugin is listed as `claude-omp-style-statusline`. Its install ID is `omp-style-statusline` because Claude Code reserves the `claude-` prefix. With GitHub read access to this repository, run:
 
 ```sh
-claude plugin install claude-omp-style-statusline --marketplace ibara1454/claude-omp-style-statusline
+claude plugin install omp-style-statusline --marketplace ibara1454/claude-omp-style-statusline
 ```
 
-Start a new `claude` session from your project, or run `/reload-plugins` in an open session. The status row appears above the prompt. No build is needed.
+The `--marketplace` flag requires Claude Code 2.1.292 or later (tested with 2.1.329). Start a new `claude` session from your project, or run `/reload-plugins` in an open session. No build is needed.
 
 ## Try without installing
 
