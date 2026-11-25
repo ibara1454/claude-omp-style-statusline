@@ -1,8 +1,8 @@
 {
   "name": "omp-style-statusline",
   "displayName": "claude-omp-style-statusline",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
-  "description": "A MoonBit-rendered model, path, Git, cost and context row above the Claude Code terminal prompt.",
+  "description": "A MoonBit-rendered model, path, Git, cost and context line below the Claude Code terminal prompt.",
   "author": { "name": "Chiajun Wang" }
 }

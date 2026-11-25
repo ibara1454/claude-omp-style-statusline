@@ -1,6 +1,6 @@
 # MoonBit statusline for Claude Code
 
-One row above your Claude Code prompt. The native footer stays untouched.
+One colored row below the Claude Code terminal prompt: purple effort and model chips, a color-coded Git branch, and a two-tone context gauge. The plugin draws directly in the terminal footer, without a yellow notice or a row above the prompt.
 
 **Wide terminal**
 
@@ -23,33 +23,33 @@ One row above your Claude Code prompt. The native footer stays untouched.
 
 The path shortens first. If space is still tight, the row drops cost → Git → model → effort → path.
 
-## Install
+## Try it for one session
 
-The plugin is listed as `claude-omp-style-statusline`. Its install ID is `omp-style-statusline` because Claude Code reserves the `claude-` prefix. With GitHub read access to this repository, run:
+From this checkout:
+
+```sh
+claude --plugin-dir .
+```
+
+The row appears as soon as the terminal session starts.
+
+## Use it by default
+
+With GitHub read access to this repository, install the plugin:
 
 ```sh
 claude plugin install omp-style-statusline --marketplace ibara1454/claude-omp-style-statusline
 ```
 
-The `--marketplace` flag requires Claude Code 2.1.292 or later (tested with 2.1.329). Start a new `claude` session from your project, or run `/reload-plugins` in an open session. No build is needed.
+Start a new `claude` session. The plugin uses the `StatusLine` render site on Claude Code 2.1.332 and later; on 2.1.329 it draws beside the built-in footer hints without replacing them.
 
-## Try without installing
-
-For one session, run this from a checkout of the plugin:
-
-```sh
-claude --plugin-dir . --allowedTools 'Bash(printenv CLAUDE_EFFORT)'
-```
-
-The session-only permission lets the plugin read the current effort at startup. It doesn’t change your settings. If effort is unavailable, the row starts with the model.
+If your `statusLine` setting calls the old `scripts/statusline.mjs`, remove that setting. The plugin draws the row itself. Keep any unrelated `statusLine` command: the colored row appears even if the command prints nothing, and Claude Code keeps its output when there is room.
 
 ## When does it update?
 
-| Action | Result |
-| --- | --- |
-| Confirm `/effort` or `/model` | Effort updates immediately, even for a session-only change. Cancel to keep the old level. |
-| Change only effort with `Alt+P` (Claude Code 2.1.329) | Run `/effort status` to refresh, or wait for the next turn. |
-| Start a session, change directory, or finish a main turn | Git refreshes. External edits made while idle appear on the next refresh. |
+The plugin reads the model, working directory, Git status and usage at startup. Claude Code does not include the resolved effort level in the session-start event. The first chip shows `◌ unknown` until Claude reports a level. The plugin does not run a slash command or use Bash to look it up.
+
+Context and cost follow session measurements; Git refreshes after directory changes and main turns. Main-conversation steps and confirmed `/effort` or `/model` changes keep the effort chip current.
 
 ## Development
 
