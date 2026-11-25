@@ -1,11 +1,11 @@
 # Development
 
-Build tools: MoonBit `0.10.21+06da1ed44` · GNU Make · Node.js · Bun `1.4.4` · Claude Code `2.1.328`.
+Build tools: MoonBit `0.10.21+06da1ed44` · GNU Make · Node.js with npm · Claude Code `2.1.328`.
 
 ```sh
 curl -fsSL https://cli.moonbitlang.com/install/unix.sh | SHELL=/bin/false bash -s -- '0.10.21+06da1ed44'
 export PATH="$HOME/.moon/bin:$PATH"
-bun install --frozen-lockfile
+npm install
 make build    # regenerate hooks/statusline.js
 make check    # verify the shipped module and run checks
 ```

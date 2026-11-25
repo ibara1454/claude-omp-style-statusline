@@ -2,10 +2,9 @@
   "name": "claude-omp-style-statusline",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.4.4",
   "scripts": {
-    "types:claude": "bun scripts/claude-types.mjs",
-    "check:ts": "bun run types:claude && bun run --bun tsc && bun run --bun oxlint --deny-warnings hooks/*.tsx tests/*.ts"
+    "types:claude": "node scripts/claude-types.mjs",
+    "check:ts": "npm run types:claude && tsc && oxlint --deny-warnings hooks/*.tsx tests/*.ts"
   },
   "devDependencies": {
     "oxlint": "1.94.0",
