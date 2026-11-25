@@ -53,4 +53,4 @@ The session-only permission lets the plugin read the current effort at startup. 
 
 ## Development
 
-[Developer guide](DEVELOPMENT.md) · [Third-party notices](THIRD-PARTY-NOTICES)
+[Developer guide](DEVELOPMENT.md) · [Third-party notices](ThirdPartyNotices.txt)
