@@ -1,63 +1,27 @@
 import type { EngineInterface, On, SessionUsage } from 'claude-code'
 import { formatPath, parseStatus, renderRow } from './statusline.js'
 
-type GitSnapshot = { generation: number; segments: string[] }
-type UsageSnapshot = { generation: number; percent: number; window: number; costUsd: number }
-type EffortSnapshot = { generation: number; level: string }
+type Git = { generation: number; segments: string[] }
+type Usage = Pick<SessionUsage, 'context' | 'cost'> & { generation: number }
 
-async function refreshGit($: EngineInterface, directory: string, git: GitSnapshot) {
+async function refreshGit($: EngineInterface, cwd: string, git: Git) {
   const generation = ++git.generation
-  const status = await $.process.run([
-    'git', '--no-optional-locks', 'status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all',
-  ], { cwd: directory }).catch(() => undefined)
-  if (generation !== git.generation) return
-
-  git.segments = status?.exitCode === 0 && !status.isStdoutTruncated && !status.isStderrTruncated
-    ? parseStatus(status.stdout)
-    : []
+  const r = await $.process.run(['git', '--no-optional-locks', 'status', '--porcelain=v2', '--branch', '-z', '--untracked-files=all'], { cwd }).catch(() => undefined)
+  if (git.generation !== generation) return
+  git.segments = r?.exitCode === 0 && !r.isStdoutTruncated && !r.isStderrTruncated ? parseStatus(r.stdout) : []
   $.ui.invalidate('ui.render')
 }
 
-function cacheUsage(usage: UsageSnapshot, { context, cost }: Pick<SessionUsage, 'context' | 'cost'>) {
-  usage.percent = context.percent ?? -1
-  usage.window = context.window
-  usage.costUsd = cost?.usd ?? -1
-}
-
-async function refreshUsage($: EngineInterface, usage: UsageSnapshot) {
+async function refreshUsage($: EngineInterface, usage: Usage) {
   const generation = ++usage.generation
-  const reading = await $.session.usage()
-  if (generation !== usage.generation) return
-  cacheUsage(usage, reading)
+  const r = await $.session.usage()
+  if (usage.generation !== generation) return
+  usage.context = r.context
+  usage.cost = r.cost
   $.ui.invalidate('ui.render')
 }
 
-function setEffort($: EngineInterface, effort: EffortSnapshot, level: string) {
-  if (effort.level === level) return
-  effort.level = level
-  $.ui.invalidate('ui.render')
-}
-
-async function refreshEffort($: EngineInterface, effort: EffortSnapshot) {
-  const generation = ++effort.generation
-  const command = 'printenv CLAUDE_EFFORT'
-  let level = ''
-  try {
-    // Claude sets this in Bash's environment, not the mod process's. Never turn an ask into an allow.
-    const { decision } = await $.tool.check({ tool: 'Bash', input: { command } })
-    if (decision === 'allow' && generation === effort.generation) {
-      const result = await $.tool.call({ tool: 'Bash', command })
-      const text = result.text?.trim()
-      if (!result.isError && text && /^(low|medium|high|xhigh|max)$/.test(text)) level = text
-    }
-  } catch {
-    // Bash may be unavailable. The next main turn supplies effort without a tool.
-  }
-  if (generation === effort.generation) setEffort($, effort, level)
-}
-
-// Picker commands return a panel handle. Their applied level arrives on the subsequent command output row.
-function confirmedEffort(command: string, output: string): string | undefined {
+function confirmedEffort(command: string, output: string) {
   const match = command === 'model'
     ? /^Set model to `[^`]+`[^`\n]*?(?: with `| · effort stays )(\w+)(?:` effort\b| \(set by )/.exec(output)
     : /^Set effort level to (\w+)\b/.exec(output)
@@ -67,32 +31,33 @@ function confirmedEffort(command: string, output: string): string | undefined {
       ?? /^Effort level: auto \(currently (\w+)\)/.exec(output)
       ?? /^Effort level(?: set to|:) (auto)\b/.exec(output)
   const level = match?.[1]
-  if (level === 'auto' || level === 'unset') return ''
+  if ((!level && command === 'model' && output.startsWith('Set model to ')) || level === 'auto' || level === 'unset') return ''
   return level && /^(low|medium|high|xhigh|max)$/.test(level) ? level : undefined
 }
 
 export function register(on: On) {
-  let model: string | undefined
-  const effort: EffortSnapshot = { generation: 0, level: '' }
-  let pendingCommand: string | undefined
-  let keepPickedEffort = false
   let cwd: string | undefined
   let home = ''
   let path = ''
-  const git: GitSnapshot = { generation: 0, segments: [] }
-  const usage: UsageSnapshot = { generation: 0, percent: -1, window: 0, costUsd: -1 }
+  let model = ''
+  let effort = ''
+  let pendingCommand: string | undefined
+  let keepPickedEffort = false
+  let useHint = false
+  const git: Git = { generation: 0, segments: [] }
+  const usage: Usage = { generation: 0, context: { window: 0 } }
 
   on('session.start', { surface: 'terminal' }, async ($, e, next) => {
     cwd = e.cwd
-    const gitReady = refreshGit($, cwd, git)
-    const [activeModel, userHome] = await Promise.all([
-      $.session.model(), $.env.get('HOME'), refreshUsage($, usage), refreshEffort($, effort),
+    const [activeModel, userHome, release] = await Promise.all([
+      $.session.model(), $.env.get('HOME'), $.session.version(), refreshGit($, cwd, git), refreshUsage($, usage),
     ])
-    model ??= activeModel
+    const patch = /^2\.1\.(\d+)/.exec(release.version)
+    useHint = !!patch && Number(patch[1]) < 332
+    model ||= activeModel
     home = userHome ?? ''
     path = formatPath(cwd, home)
     $.ui.invalidate('ui.render')
-    await gitReady
     return next(e)
   })
 
@@ -114,47 +79,10 @@ export function register(on: On) {
 
   on('session.measure', ($, e, next) => {
     if (cwd !== undefined) {
-      // A pushed measurement supersedes any plain usage read still in flight.
-      usage.generation += 1
-      cacheUsage(usage, e)
+      usage.generation++
+      usage.context = e.context
+      usage.cost = e.cost
       $.ui.invalidate('ui.render')
-    }
-    return next(e)
-  })
-
-  on('turn.step', async function* ($, e, next) {
-    if (cwd !== undefined && e.agentId === undefined && (e.index === 0 || !keepPickedEffort)) {
-      // A later step of an already-running turn can still carry the pre-picker effort.
-      keepPickedEffort = false
-      effort.generation++
-      setEffort($, effort, e.effort?.toString() ?? '')
-    }
-    return yield* next(e)
-  })
-
-  on('session.append', { door: 'command' }, async ($, e, next) => {
-    const block = e.message.content[0]
-    if (cwd === undefined || e.agentId !== undefined || block?.type !== 'text' || typeof block.text !== 'string') {
-      return next(e)
-    }
-    const text = block.text
-    if (text.startsWith('<command-name>')) {
-      pendingCommand = /^<command-name>\/(effort|model)<\/command-name>/.exec(text)?.[1]
-    } else if (pendingCommand) {
-      const output = /^<local-command-stdout>([\s\S]*)<\/local-command-stdout>$/.exec(text)?.[1]
-      if (output !== undefined) {
-        const command = pendingCommand
-        pendingCommand = undefined
-        const level = confirmedEffort(command, output)
-        if (level !== undefined) {
-          effort.generation++
-          keepPickedEffort = true
-          setEffort($, effort, level)
-        }
-        if (output === 'Effort level set to auto' || (command === 'model' && level === undefined && output.startsWith('Set model to '))) {
-          await refreshEffort($, effort)
-        }
-      }
     }
     return next(e)
   })
@@ -162,10 +90,8 @@ export function register(on: On) {
   on('classic.PostModelSwitch', async ($, e, next) => {
     if (cwd !== undefined && e.agent_id === undefined) {
       model = e.to_model
-      effort.level = ''
-      usage.percent = -1
-      usage.window = 0
-      await Promise.all([refreshUsage($, usage), refreshEffort($, effort)])
+      effort = ''
+      await refreshUsage($, usage)
     }
     return next(e)
   })
@@ -175,19 +101,52 @@ export function register(on: On) {
     return next(e)
   })
 
-  on('ui.render', { component: 'AbovePrompt', surface: 'terminal' }, ($, e, next) => {
-    if (!model || e.props.hasSurvey) return next(e)
+  on('turn.step', async function* ($, e, next) {
+    if (cwd !== undefined && e.agentId === undefined && (e.index === 0 || !keepPickedEffort)) {
+      keepPickedEffort = false
+      const level = e.effort?.toString() ?? ''
+      if (effort !== level) {
+        effort = level
+        $.ui.invalidate('ui.render')
+      }
+    }
+    return yield* next(e)
+  })
+
+  on('session.append', { door: 'command' }, ($, e, next) => {
+    const block = e.message.content[0]
+    if (cwd !== undefined && e.agentId === undefined && block?.type === 'text' && typeof block.text === 'string') {
+      if (block.text.startsWith('<command-name>')) {
+        pendingCommand = /^<command-name>\/(effort|model)<\/command-name>/.exec(block.text)?.[1]
+      } else if (pendingCommand) {
+        const output = /^<local-command-stdout>([\s\S]*)<\/local-command-stdout>$/.exec(block.text)?.[1]
+        if (output !== undefined) {
+          const level = confirmedEffort(pendingCommand, output)
+          pendingCommand = undefined
+          if (level !== undefined) {
+            effort = level
+            keepPickedEffort = true
+            $.ui.invalidate('ui.render')
+          }
+        }
+      }
+    }
+    return next(e)
+  })
+
+  on('ui.render', { component: ['StatusLine', 'PromptHint'], surface: 'terminal' }, async ($, e, next) => {
+    if (!model || (e.component === 'PromptHint') !== useHint) return next(e)
+    if (e.component === 'StatusLine' && e.props.maxRows < 1) return next(e)
+    const columns = e.component === 'StatusLine' ? e.props.columns : (e.viewport?.columns ?? 80) - 4
+    const spans = renderRow(columns, model, effort || '◌ unknown', path, git.segments, usage.context.percent ?? -1, usage.context.window, usage.cost?.usd ?? -1)
+    if (!spans.length) return next(e)
     const { Box, Text } = $.ui.resolve(e)
-    const columns = e.props.bodyColumns
-    const spans = renderRow(columns, model, effort.level, path, git.segments, usage.percent, usage.window, usage.costUsd)
     const children = []
     for (let i = 0; i < spans.length; i += 3) {
-      children.push(
-        <Text key={String(i)} color={spans[i + 1]} backgroundColor={spans[i + 2] || undefined} wrap="truncate-end">
-          {spans[i]}
-        </Text>,
-      )
+      children.push(<Text key={String(i)} color={spans[i + 1]} backgroundColor={spans[i + 2] || undefined} wrap="truncate-end">{spans[i]}</Text>)
     }
-    return <Box width={columns} height={1} flexDirection="row" flexWrap="nowrap">{children}</Box>
+    const row = <Box flexDirection="row" height={1} width={columns} flexWrap="nowrap">{children}</Box>
+    // Keep the native command or prompt hints below our row when the host has room.
+    return <Box flexDirection="column">{row}{await next(e)}</Box>
   })
 }

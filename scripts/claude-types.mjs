@@ -1,8 +1,8 @@
 import { hash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 
-const version = '2.1.328'
-const sha256 = '2844f0e5e0886272ad3736e5282d3c4a9f7a9296d0d7ccb823451aa9dbe7365b'
+const version = '2.1.332'
+const sha256 = 'b89f24fde1dd1ddfd08a5355a0cf1d1b8bbc25e9f7474c697fbe4d89dbb93c31'
 const cache = new URL('../node_modules/.cache/claude-code/index.d.ts', import.meta.url)
 const matches = (bytes) => hash('sha256', bytes, 'hex') === sha256
 
