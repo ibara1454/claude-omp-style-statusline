@@ -5,13 +5,13 @@ One colored row below the Claude Code terminal prompt: purple effort and model c
 **Wide terminal**
 
 ```text
- ◕ xhigh > gpt-6-luna > 📁 ~/src/atlas > ⑂ main *2 +1 ?3 > ~$0.42 ▶────32%─────200K─
+ ◕ xhigh > gpt-6-luna > 📁 ~/src/atlas > ⑂ main *2 +1 ?3 > ~$0.42 ▶────────────────────32%───────────────────────────────────────200K─
 ```
 
 **Same session, narrow terminal**
 
 ```text
- 📁 …tlas ▶────32%─────200K─
+ 📁 …c/atlas ▶───32%───200K─
 ```
 
 | Readout | What it means |
@@ -21,7 +21,7 @@ One colored row below the Claude Code terminal prompt: purple effort and model c
 | `~$0.42` | Estimated session cost, not a bill. Hidden if unknown. |
 | `32%` · `200K` | 32% of the 200K-token context window used. Until usage arrives, only the window size is shown. |
 
-The path shortens first. If space is still tight, the row drops cost → Git → model → effort → path.
+The gauge (or plain divider when usage is unavailable) gets at least half the row, rounded up. The other half keeps the path and as many whole chips as fit, in priority order: effort, model, Git, then cost. The path uses the remaining space before the gauge grows beyond half. In very narrow terminals the folder and a suffix such as `…e` stay if they fit; otherwise the gauge fills the row. Gauge labels stay visible whenever the row can fit them.
 
 ## Installation
 
@@ -33,7 +33,7 @@ claude plugin install omp-style-statusline --marketplace ibara1454/claude-omp-st
 
 Start a new `claude` session. The plugin uses the `StatusLine` render site on Claude Code 2.1.332 and later; on 2.1.329 it draws beside the built-in footer hints without replacing them.
 
-If your `statusLine` setting calls the old `scripts/statusline.mjs`, remove that setting. The plugin draws the row itself. Keep any unrelated `statusLine` command: the colored row appears even if the command prints nothing, and Claude Code keeps its output when there is room.
+If your `statusLine` setting calls the old `scripts/statusline.mjs`, remove that setting. Keep any unrelated `statusLine` command: its output stays visible, and the colored row appears when there is a spare row, even if the command prints nothing.
 
 ## When does it update?
 
