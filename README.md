@@ -29,8 +29,6 @@ claude plugin install omp-style-statusline --marketplace ibara1454/claude-omp-st
 
 Start a new `claude` session. The plugin uses the `StatusLine` render site on Claude Code 2.1.332 and later; on 2.1.329 it draws beside the built-in footer hints without replacing them.
 
-If your `statusLine` setting calls the old `scripts/statusline.mjs`, remove that setting. Keep any unrelated `statusLine` command: its output stays visible, and the colored row appears when there is a spare row, even if the command prints nothing.
-
 ## When does it update?
 
 The plugin reads the model, working directory, Git status and usage at startup. Claude Code does not include the resolved effort level in the session-start event. The first chip shows `◌ unknown` until Claude reports a level. The plugin does not run a slash command or use Bash to look it up.
