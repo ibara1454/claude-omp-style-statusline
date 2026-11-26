@@ -23,17 +23,7 @@ One colored row below the Claude Code terminal prompt: purple effort and model c
 
 The path shortens first. If space is still tight, the row drops cost → Git → model → effort → path.
 
-## Try it for one session
-
-From this checkout:
-
-```sh
-claude --plugin-dir .
-```
-
-The row appears as soon as the terminal session starts.
-
-## Use it by default
+## Installation
 
 With GitHub read access to this repository, install the plugin:
 

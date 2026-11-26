@@ -14,6 +14,6 @@ The first build fetches MoonBit packages; the type check fetches [Claude’s dec
 
 `make check` covers MoonBit (90% minimum coverage), Git integration, types, lint, plugin validation and footer mount tests.
 
-**Live check:** use the one-session command in the [README](README.md#try-it-for-one-session). In a color-capable terminal, check the purple model chip, dark chip background and contrasting gauge below the prompt. Narrow the terminal and check the row again on its next refresh.
+**Live check:** from this checkout, run `claude --plugin-dir .` in a color-capable terminal. Check the purple model chip, dark chip background and contrasting gauge below the prompt. Narrow the terminal and check the row again on its next refresh.
 
 [Terminal footer](hooks/register.tsx) · [MoonBit layout](core/layout.mbt) · [Original OMP layout](https://github.com/can1357/oh-my-pi/blob/v19.0.0/packages/tui/src/status-line/component.ts)
