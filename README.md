@@ -4,11 +4,11 @@ One colored row below the Claude Code terminal prompt: purple effort and model c
 
 **Wide terminal**
 
-![Claude Code input line above the example footer: xhigh, gpt-6-luna, ~/src/atlas, main with 2 unstaged, 1 staged and 3 untracked, ~$0.42, and 32% of 200K context.](assets/previews/renderer-wide.png)
+<img src="assets/previews/renderer-wide.png" width="100%" alt="Claude Code input line above the example footer: xhigh, gpt-6-luna, ~/src/atlas, main with 2 unstaged, 1 staged and 3 untracked, ~$0.42, and 32% of 200K context.">
 
 **Same session, narrow terminal**
 
-![The same input line above the shortened …c/atlas path and 32% of 200K context; the other chips are hidden.](assets/previews/renderer-narrow.png)
+<img src="assets/previews/renderer-narrow.png" width="23.19%" alt="The same input line above the shortened …c/atlas path and 32% of 200K context; the other chips are hidden.">
 
 | Readout | What it means |
 | --- | --- |
