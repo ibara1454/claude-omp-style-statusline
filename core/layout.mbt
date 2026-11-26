@@ -35,20 +35,37 @@ fn chip_label_cells(label : String, prefix_cells : Int32) -> Int32 {
 }
 
 ///|
-fn clip_path(path : String, cells : Int32, limit : Int32) -> (String, Int32) {
-  if cells <= limit {
-    (path, cells)
+fn fit_chip(cells : Int32, available : Int32) -> Int32 {
+  if cells <= available {
+    cells
   } else {
-    let mut dropped = 0
-    let mut offset = 0
-    for cluster in @segmentation.graphemes(path) {
-      dropped += @unicodewidth.str_width(cluster)
-      offset += cluster.length()
-      if cells - dropped < limit {
-        break
-      }
+    0
+  }
+}
+
+///|
+// Keep the shortest useful suffix if none fits; callers decide whether to hide it.
+fn clip_path(path : String, cells : Int32, limit : Int32) -> (Int32, Int32) {
+  if cells <= limit {
+    return (0, cells)
+  }
+  let mut remaining = cells
+  let mut start = 0
+  for cluster in @segmentation.graphemes(path) {
+    let next = remaining - @unicodewidth.str_width(cluster)
+    if next == 0 {
+      break
     }
-    ("…" + path[offset:].to_owned(), cells - dropped + 1)
+    remaining = next
+    start += cluster.length()
+    if remaining < limit {
+      break
+    }
+  }
+  if cells - remaining <= 1 {
+    (0, cells)
+  } else {
+    (start, remaining + 1)
   }
 }
 
@@ -63,23 +80,6 @@ fn append_git_count(
     let text = if leading_space { " " + label } else { label }
     add_span(out, text, fg, ChipBg)
   }
-}
-
-///|
-fn row_overflow(
-  columns : Int32,
-  group_cells : Int32,
-  chips : Int32,
-  gauge_cells : Int32,
-) -> Int32 {
-  let gap = if chips == 1 &&
-    gauge_cells > 0 &&
-    group_cells + gauge_cells > columns {
-    1 // Keep the final chip and fall back to an unlabelled rule.
-  } else {
-    gauge_cells
-  }
-  group_cells + gap - columns
 }
 
 ///|
@@ -115,11 +115,6 @@ pub fn render_row(
     _ => ("", "", "", "")
   }
   let cost = cost_label(cost_usd)
-  let mut effort_cells = chip_label_cells(effort, 3)
-  let mut model_cells = chip_label_cells(model, 3)
-  let path_width = terminal_cells(path)
-  let path_limit = path_width.min(40)
-  let path_cells = if path.is_empty() { 0 } else { path_limit + 6 }
   let branch_cells = chip_label_cells(branch, 2)
   let unstaged_cells = chip_label_cells(
     unstaged,
@@ -149,55 +144,38 @@ pub fn render_row(
     unstaged_cells +
     staged_cells +
     untracked_cells
-  let mut git_cells = if git_label_cells == 0 { 0 } else { git_label_cells + 3 }
-  let mut cost_cells = chip_label_cells(cost, 3)
 
   let window = window_label(window)
-  let gauge_cells = gauge_min_width(percent, window)
-  // Each chip accounts for three cells of group chrome: either the outer
-  // two spaces and cap, or the separator and its spaces.
-  let mut group_cells = effort_cells +
-    model_cells +
-    path_cells +
-    git_cells +
-    cost_cells
-  let mut chips = (effort_cells > 0).to_int() +
-    (model_cells > 0).to_int() +
-    (path_cells > 0).to_int() +
-    (git_cells > 0).to_int() +
-    (cost_cells > 0).to_int()
-  let overflow = row_overflow(columns, group_cells, chips, gauge_cells)
-  // The eight-cell path floor includes the folder and its space.
-  let shrink = overflow.min(path_limit - 5).max(0)
-  let (path, clipped_width) = clip_path(path, path_width, path_limit - shrink)
-  group_cells -= path_limit - clipped_width
-
-  if cost_cells > 0 &&
-    row_overflow(columns, group_cells, chips, gauge_cells) > 0 {
-    group_cells -= cost_cells
-    cost_cells = 0
-    chips -= 1
+  let chip_budget = (columns / 2)
+    .min(columns - gauge_min_width(percent, window))
+    .max(0)
+  let path_width = terminal_cells(path)
+  let path_chrome = if path_width > 0 { 6 } else { 0 }
+  let effort_cells = chip_label_cells(effort, 3)
+  let model_cells = chip_label_cells(model, 3)
+  let git_cells = if git_label_cells > 0 { git_label_cells + 3 } else { 0 }
+  let cost_cells = chip_label_cells(cost, 3)
+  let all_chips = effort_cells + model_cells + git_cells + cost_cells
+  let path_budget = chip_budget - path_chrome
+  // Measure the actual suffix: a five-cell allowance need not use five cells.
+  let preferred_limit = (path_budget - all_chips).max(5)
+  let (offset, reserved) = clip_path(path, path_width, preferred_limit)
+  let available = path_budget - reserved
+  let effort_cells = fit_chip(effort_cells, available)
+  let model_cells = fit_chip(model_cells, available - effort_cells)
+  let available = available - effort_cells - model_cells
+  let git_cells = fit_chip(git_cells, available)
+  let cost_cells = fit_chip(cost_cells, available - git_cells)
+  let other_cells = effort_cells + model_cells + git_cells + cost_cells
+  let limit = path_budget - other_cells
+  let (path_offset, path_cells) = if limit == preferred_limit {
+    (offset, reserved)
+  } else {
+    clip_path(path, path_width, limit)
   }
-  if git_cells > 0 && row_overflow(columns, group_cells, chips, gauge_cells) > 0 {
-    group_cells -= git_cells
-    git_cells = 0
-    chips -= 1
-  }
-  if model_cells > 0 &&
-    row_overflow(columns, group_cells, chips, gauge_cells) > 0 {
-    group_cells -= model_cells
-    model_cells = 0
-    chips -= 1
-  }
-  if effort_cells > 0 &&
-    row_overflow(columns, group_cells, chips, gauge_cells) > 0 {
-    group_cells -= effort_cells
-    effort_cells = 0
-    chips -= 1
-  }
-  guard chips > 0 && row_overflow(columns, group_cells, chips, gauge_cells) <= 0 else {
-    return []
-  }
+  let show_path = path_cells > 0 && path_cells <= limit
+  let group_cells = other_cells +
+    (if show_path { path_cells + path_chrome } else { 0 })
 
   let out : Array[String] = []
   if effort_cells > 0 {
@@ -208,9 +186,14 @@ pub fn render_row(
     begin_chip(out)
     add_span(out, model, "#af5fff", ChipBg)
   }
-  if path_cells > 0 {
+  if show_path {
     begin_chip(out)
-    add_span(out, "📁 " + path, "#eeeeee", ChipBg)
+    let label = if path_offset == 0 {
+      "📁 " + path
+    } else {
+      "📁 …" + path[path_offset:].to_owned()
+    }
+    add_span(out, label, "#eeeeee", ChipBg)
   }
   if git_cells > 0 {
     begin_chip(out)
@@ -235,8 +218,10 @@ pub fn render_row(
     begin_chip(out)
     add_span(out, cost, "#d7af87", ChipBg)
   }
-  add_span(out, " ", SeparatorFg, ChipBg)
-  add_span(out, "▶", SeparatorFg, "")
+  if group_cells > 0 {
+    add_span(out, " ", SeparatorFg, ChipBg)
+    add_span(out, "▶", SeparatorFg, "")
+  }
   append_gauge(out, columns - group_cells, percent, window)
   FixedArray::from_array(out)
 }

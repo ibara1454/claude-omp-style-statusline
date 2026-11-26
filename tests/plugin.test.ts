@@ -43,6 +43,18 @@ for (const [version, component, configured] of [
     }
     expect(await mounted.find({ type: 'Text', text: /^◑ high$/ })).toBeDefined()
     expect(await mounted.find({ type: 'Text', text: '◌ unknown' })).toBeUndefined()
+    if (status) {
+      await status.redraw({ text: 'native', isManaged: false, isWorking: false, maxRows: 2, columns: 18 })
+      expect(await status.find({ type: 'Text', text: '32%' })).toBeDefined()
+      expect(await status.find({ type: 'Text', text: '200K' })).toBeDefined()
+      expect(await status.find({ type: 'Text', text: '▶' })).toBeUndefined()
+      expect(await status.keepsBeneath()).toBe(true)
+      for (const [text, maxRows] of [['ready', 1], ['build\nready', 2]] as const) {
+        await status.redraw({ text, isManaged: false, isWorking: false, maxRows, columns: 10 })
+        expect(await status.find({ type: 'Text', text: /^─+$/ })).toBeUndefined()
+        expect(await status.keepsBeneath()).toBe(true)
+      }
+    }
     await mounted.unmount()
   })
 }

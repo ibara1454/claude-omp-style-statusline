@@ -136,7 +136,17 @@ export function register(on: On) {
 
   on('ui.render', { component: ['StatusLine', 'PromptHint'], surface: 'terminal' }, async ($, e, next) => {
     if (!model || (e.component === 'PromptHint') !== useHint) return next(e)
-    if (e.component === 'StatusLine' && e.props.maxRows < 1) return next(e)
+    if (e.component === 'StatusLine') {
+      const { maxRows, text } = e.props
+      let nativeRows = text ? 1 : 0
+      if (text) {
+        for (let end = -1; nativeRows < maxRows; nativeRows++) {
+          end = text.indexOf('\n', end + 1)
+          if (end === -1) break
+        }
+      }
+      if (nativeRows >= maxRows) return next(e)
+    }
     const columns = e.component === 'StatusLine' ? e.props.columns : (e.viewport?.columns ?? 80) - 4
     const spans = renderRow(columns, model, effort || '◌ unknown', path, git.segments, usage.context.percent ?? -1, usage.context.window, usage.cost?.usd ?? -1)
     if (!spans.length) return next(e)
