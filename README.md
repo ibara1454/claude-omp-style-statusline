@@ -1,4 +1,4 @@
-# MoonBit statusline for Claude Code
+# Statusline for Claude Code
 
 One colored row below the Claude Code terminal prompt: purple effort and model chips, a color-coded Git branch, and a two-tone context gauge. The plugin draws directly in the terminal footer, without a yellow notice or a row above the prompt.
 
